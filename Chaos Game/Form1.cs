@@ -15,15 +15,19 @@ namespace WindowsFormsApplication1
         const int width = 1440;
         const int height = 900;
 
-        double minX = -8;       //The range of R^2 to map to the screen
-        double maxX = 8;
+        /*double minX = -8;       //The range of R^2 to map to the screen
+        double maxX = 8;          //This window is fit to the barnsley fern
         double minY = -2;
-        double maxY = 12;
+        double maxY = 12;*/
+
+        double minX = -2;       //The range of R^2 to map to the screen
+        double maxX = 2;        //This window seems to work well for random fractals
+        double minY = -2;
+        double maxY = 2;
 
         Random rand = new Random();
         int[,] visitedPixels = new int [ width,height];
         Bitmap bmp = new Bitmap(1440, 900);
-        Graphics graphicsObj;
         public Form1()
         {
             InitializeComponent();
@@ -54,9 +58,12 @@ namespace WindowsFormsApplication1
         }
 
         //Takes a list of functions, with the same form as runGame's functions, and a list of cumulative probabilities for the functions and iterates with them
-        void runProbGame(double[] initialPosition, double[][] inFunctions, double[] probs, int[,] visited, int iter)
+        int runProbGame(double[] initialPosition, double[][] inFunctions, double[] probs, int[,] visited, int iter)
         {
+            int numVisited = 0;
+            double averageDist = 0.0;
             double[] pos = initialPosition;
+            double[] temp = {0, 0};
             double[] function= {0, 0, 0, 0, 0,0};
             int x = 0, y = 0;
             for(int i=0; i< iter; i++)
@@ -79,9 +86,11 @@ namespace WindowsFormsApplication1
                     }
                 }
 
-                //And here we reevaluate the position with the function choosen above and add one to our visited pixel store
-                pos[0] = pos[0] * function[0] + pos[1] * function[1] + function[4];
-                pos[1] = pos[0] * function[2] + pos[1] * function[3] + function[5];
+                temp[0] = pos[0] * function[0] + pos[1] * function[1] + function[4];
+                temp[1] = pos[0] * function[2] + pos[1] * function[3] + function[5];
+                pos[0] = temp[0];
+                pos[1] = temp[1];
+
                 if (pos[0] <= maxX && pos[0] >= minX)
                 {
                     double normalizedX = (pos[0] - minX) / (maxX - minX);
@@ -92,7 +101,55 @@ namespace WindowsFormsApplication1
                     double normalizedY = (pos[1] - minY) / (maxY - minY);
                     y = (int)(height - normalizedY * height);
                 }
+                if(visited[x, y]==0)
+                {
+                    visited[x, y]++;
+                    numVisited++;
+                }
                 visited[x, y]++;
+                double dist = Math.Pow(pos[0] * pos[0] + pos[1] * pos[1], .5);
+                averageDist = averageDist*(i)/(i+1)+dist/(i+1);
+            }
+            //Console.WriteLine(averageDist); //Uncomment this line to write the average distance of each point from the origin in the fractal
+            return numVisited;
+        }
+
+        int randomLinearFractal(int functionNumber, int iterations, int[,] store) //Returns number of distinct pixels visited on the screen
+        {
+            double[][] functions = new double[functionNumber][];
+            double[] pos = { 0, 0 };
+            double[] probs = new double[functionNumber];
+            double[] temp = { 0, 0 };
+            for (int f = 0; f < functionNumber; f++)
+            {
+                functions[f] = new double[6];
+                for (int c = 0; c < 6; c++)
+                {
+                    functions[f][c] = 2*rand.NextDouble()-1.0;
+                }
+            }
+            for (int p = 0; p < functionNumber; p++)
+            {
+                probs[p] = 1.0 / functionNumber;
+            }
+            return runProbGame(pos, functions, probs, store, iterations);
+        }
+
+        void renderBinaryBitmap(int[,] dataSource, Bitmap drawingMap, Color offColor, Color onColor)    //Stores data in dataSource into the drawingMap Bitmap
+        {
+            for(int x=0; x<dataSource.GetLength(0); x++)
+            {
+                for(int y=0; y<dataSource.GetLength(1); y++)
+                {
+                    if(dataSource[x,y]==0)
+                    {
+                        drawingMap.SetPixel(x, y, offColor);
+                    }
+                    else
+                    {
+                        drawingMap.SetPixel(x, y, onColor);
+                    }
+                }
             }
         }
 
@@ -108,26 +165,11 @@ namespace WindowsFormsApplication1
             fern[3] = new double[6] { -.15, .28, .26, .24, 0, .44 };
             double[] probs = { .01, .86, .93, 1.0};
             double[] initialPosition = { 0, 0};
-            runProbGame(initialPosition, fern, probs, visitedPixels, 1000000);
 
-            //Here we draw the bitmap with the info from our visited pixels
-            for(int x=0; x<1440; x++)
-            {
-                for(int y=0; y<900; y++)
-                {
-                    if(visitedPixels[x,y]!=0)
-                    {
-                        bmp.SetPixel(x, y, Color.White);
-                    }
-                    else
-                    {
-                        bmp.SetPixel(x, y, Color.Black);
-                    }
-                }
-            }
-            graphicsObj = Graphics.FromImage(bmp);
-            graphicsObj.DrawImage(bmp, 0, 0);
-            Invalidate();
+            //runProbGame(initialPosition, fern, probs, visitedPixels, 1000000);    //Uncomment to run fern fractal
+            randomLinearFractal(5, 10000, visitedPixels);
+
+            renderBinaryBitmap(visitedPixels, bmp, Color.Black, Color.White);
         }
 
         private void Form1_Paint(object sender, PaintEventArgs e)
