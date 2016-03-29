@@ -160,6 +160,7 @@ namespace WindowsFormsApplication1
             double[] standardWindow = { -2, 2, -2, 2 };
             //runFern(visitedPixels, 1000000);
             //runGalaxy(300, 10000, visitedPixels, standardWindow);
+            randomLinearFractal(2, 100000, visitedPixels, standardWindow);
 
             renderBinaryBitmap(visitedPixels, bmp, Color.Black, Color.White);
         }
